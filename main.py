@@ -14,9 +14,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Sprint Review AI Backend"}
+    
+    return {"status": "ok", "message": "Sprint Review AI Backend - v2.0 Deployed via CI/CD!"}
+
+
+
 
 @app.get("/health")
 def health():
