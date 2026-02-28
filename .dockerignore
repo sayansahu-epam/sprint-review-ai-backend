@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Testing (not needed in production container)
+.pytest_cache/
+
+# GitHub Actions
+.github/
