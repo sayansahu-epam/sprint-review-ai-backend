@@ -10,8 +10,7 @@ def test_root():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["message"] == "Sprint Review AI Backend"
-
+    assert data["message"] == "Sprint Review AI Backend - v2.0 Deployed via CI/CD!"
 
 def test_health():
     """Test the health endpoint returns healthy status"""
