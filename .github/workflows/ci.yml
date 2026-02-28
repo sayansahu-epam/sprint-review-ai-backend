@@ -1,5 +1,15 @@
+# ============================================================
+# CI PIPELINE - Sprint Review AI Backend
+# ============================================================
+# This workflow runs on every push and pull request
+# It performs two jobs in parallel: linting and testing
+# ============================================================
+
 name: CI Pipeline
 
+# ────────────────────────────────────────────────────────────
+# EVENTS: When should this workflow run?
+# ────────────────────────────────────────────────────────────
 on:
   push:
     branches:
@@ -8,8 +18,42 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
 
+# ────────────────────────────────────────────────────────────
+# JOBS: What should this workflow do?
+# ────────────────────────────────────────────────────────────
 jobs:
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 1: LINT - Check code quality and style
+  # ──────────────────────────────────────────────────────────
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+
+      - name: Run flake8 linting
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-line-length=127 --statistics
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 2: TEST - Run all unit tests
+  # ──────────────────────────────────────────────────────────
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -30,4 +74,4 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests/ -v
+          pytest tests/ -v --tb=short
