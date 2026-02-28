@@ -1,35 +1,20 @@
 # ============================================================
-# Stage 1: Base image with Python
+# Dockerfile for AWS Lambda (Container Image)
 # ============================================================
-FROM python:3.12-slim
 
-# ============================================================
-# Set working directory inside the container
-# ============================================================
-WORKDIR /app
+# Use AWS Lambda Python base image
+FROM public.ecr.aws/lambda/python:3.12
 
-# ============================================================
 # Copy requirements first (for better caching)
-# ============================================================
 COPY requirements.txt .
 
-# ============================================================
 # Install Python dependencies
-# ============================================================
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# ============================================================
-# Copy the rest of the application code
-# ============================================================
+# Copy all application code
 COPY . .
 
-# ============================================================
-# Expose port 8000 (for local testing)
-# ============================================================
-EXPOSE 8000
-
-# ============================================================
-# Command to run the application
-# ============================================================
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set the handler (Mangum wraps FastAPI for Lambda)
+# This tells Lambda: "Call main.py's handler function"
+CMD ["main.handler"]
