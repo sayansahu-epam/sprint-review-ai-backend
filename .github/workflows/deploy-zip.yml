@@ -1,0 +1,132 @@
+# ============================================================
+# CD PIPELINE - Deploy to AWS Lambda (Zip Artifact)
+# ============================================================
+# This workflow deploys using zip file instead of Docker
+# It packages the code as .zip and uploads directly to Lambda
+# ============================================================
+
+name: CD - Deploy to Lambda (Zip)
+
+# ────────────────────────────────────────────────────────────
+# WHEN TO RUN: Only manual trigger or push to main
+# ────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:  # Manual trigger only
+  push:
+    branches:
+      - main
+
+# ────────────────────────────────────────────────────────────
+# JOBS
+# ────────────────────────────────────────────────────────────
+jobs:
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 1: RUN TESTS FIRST
+  # ──────────────────────────────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 2: PACKAGE AND DEPLOY AS ZIP
+  # ──────────────────────────────────────────────────────────
+  deploy-zip:
+    name: Deploy Zip to Lambda
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      # Step 1: Get the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Step 3: Install dependencies into a package folder
+      - name: Install dependencies into package
+        run: |
+          echo "Installing dependencies into package folder..."
+          mkdir package
+          pip install -r requirements.txt -t package/
+          echo "✅ Dependencies installed!"
+
+      # Step 4: Create zip file
+      - name: Create deployment zip
+        run: |
+          echo "Creating zip file..."
+          cd package
+          zip -r ../deployment.zip .
+          cd ..
+          zip deployment.zip main.py models.py analyzer.py
+          echo "✅ Zip file created!"
+          ls -lh deployment.zip
+
+      # Step 5: Login to AWS
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Step 6: Upload zip to Lambda
+      - name: Deploy zip to Lambda
+        run: |
+          echo "Deploying zip to Lambda..."
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ZIP }} \
+            --zip-file fileb://deployment.zip
+
+          echo "⏳ Waiting for Lambda to update..."
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ZIP }}
+
+          echo "✅ Lambda updated with zip!"
+
+      # Step 7: Set Lambda handler
+      - name: Configure Lambda handler
+        run: |
+          echo "Setting Lambda handler..."
+          aws lambda update-function-configuration \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ZIP }} \
+            --handler main.handler \
+            --environment "Variables={GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent}"
+
+          echo "⏳ Waiting for Lambda to update..."
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ZIP }}
+
+          echo "✅ Handler and environment variables set!"
+
+      # Step 8: Verify deployment
+      - name: Verify deployment
+        run: |
+          echo "Getting Lambda function info..."
+          aws lambda get-function \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ZIP }} \
+            --query 'Configuration.[FunctionName,LastModified,State,Handler]'
+          echo ""
+          echo "🎉 Zip deployment complete!"
